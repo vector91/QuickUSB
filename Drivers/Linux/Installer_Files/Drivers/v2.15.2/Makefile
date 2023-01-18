@@ -49,4 +49,4 @@ reinstall: all
 
 clean:
 	$(ECHO) $(DISP_RM)
-	@$(RM) -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions x86/*.ko x64/*.ko
+	@$(RM) -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions x86/*.ko x64/*.ko *.symvers *.order *.mod
