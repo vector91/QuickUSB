@@ -291,12 +291,23 @@ ssize_t qusb_write_iter(struct kiocb *iocb, struct iov_iter *vec)
     return 0;
 }*/
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static void async_request_timeout(struct timer_list *t){
     struct async_request_context *req = (struct async_request_context*) from_timer(req, t, timer);
     QUSB_PRINTK(("Async request has timed out and will be unlinked\n"));
 
     qusb_sg_timedout(&req->io);
 }
+#else
+static void async_request_timeout(unsigned long data){
+    struct async_request_context *req = (struct async_request_context*) data;
+    QUSB_PRINTK(("Async request has timed out and will be unlinked\n"));
+
+    qusb_sg_timedout(&req->io);
+}
+#endif
+
+
 
 
 
@@ -381,7 +392,12 @@ ssize_t qusb_async(struct kiocb *iocb, char __user *buf, size_t count, BOOL read
     down_read(&current->mm->mmap_sem);
 #endif
 
-    req->lockedPages = get_user_pages_remote(current->mm, (unsigned long)addr, req->numPages, 0, req->pages, NULL, NULL);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+        req->lockedPages = get_user_pages_remote(current->mm, (unsigned long)addr, req->numPages, 0, req->pages, NULL, NULL);
+#else
+        req->lockedPages = get_user_pages(current, current->mm, (unsigned long)addr, req->numPages, read, 0, req->pages, NULL);
+#endif
+    
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
     up_read(&current->mm->mmap_lock);
@@ -668,8 +684,16 @@ ssize_t qusb_async(struct kiocb *iocb, char __user *buf, size_t count, BOOL read
     //QUSB_PRINTK(("Unaligned count: %i\n", (unsigned long)unalignedCount));
 
     // Initialize the timeout timer for the request
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
     timer_setup(&req->timer, async_request_timeout, 0);
     mod_timer(&req->timer, jiffies + (HZ * dev->timeout) / 1000);
+#else
+    init_timer(&req->timer);
+    req->timer.expires = jiffies + (HZ * dev->timeout) / 1000;
+    req->timer.function = async_request_timeout;
+    req->timer.data = (unsigned long)req;
+    add_timer(&req->timer);
+#endif
     // Submit the scatter/gather URBs asynchronously
     qusb_sg_submit_async(&req->io, (read ? &dev->pendingAsyncReadUrbs : &dev->pendingAsyncWriteUrbs));
     QUSB_PRINTK(("Asynchronous %s request issued for %i bytes\n", (read ? "read" : "write"), (int)(totalBytes - unalignedCount)));
