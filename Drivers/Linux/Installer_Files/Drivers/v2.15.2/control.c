@@ -370,10 +370,19 @@ int qusb_ioctl(struct file *filp, unsigned int cmd, void __user *arg, BYTE compa
 
     // Verify arg address
     if (_IOC_DIR(cmd) & _IOC_READ) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
         result = !access_ok(arg, _IOC_SIZE(cmd));
+#else
+        result = !access_ok(VERIFY_WRITE, arg, _IOC_SIZE(cmd));
+#endif
+        
     }
     else if ( _IOC_DIR( cmd ) & _IOC_WRITE ) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
         result = !access_ok(arg, _IOC_SIZE(cmd));
+#else
+        result = !access_ok(VERIFY_READ, arg, _IOC_SIZE(cmd));
+#endif
     }
     if (result) {
         QUSB_PRINTK(("Invalid argument\n"));
