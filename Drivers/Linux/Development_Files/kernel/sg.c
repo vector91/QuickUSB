@@ -127,7 +127,13 @@ void qusb_sg_complete(struct urb *urb)
         complete(&io->complete);
 
         // Complete the asynchronous request
+
+// the last argument was removed from ki_complete in kernel version 5.16
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+        req->iocb->ki_complete(req->iocb, io->status);
+#else
         req->iocb->ki_complete(req->iocb, io->status, req->io.bytes);
+#endif
         QUSB_PRINTK(("Asynchronous request complete (%i, %i, %p)\n", (int)io->status, (int)req->io.bytes, req->iocb));
         
         // Handle internal request serialization

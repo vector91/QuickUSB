@@ -65,6 +65,10 @@ typedef void *          PVOID;
 #define DRIVER_NAME     "qusb"
 #define MINOR_BASE      0xAB
 #define IMPLEMENT_ASYNC (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+// this seems not to be defined anymore and we need it
+#ifndef HAVE_UNLOCKED_IOCTL
+#define HAVE_UNLOCKED_IOCTL (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 11))
+#endif
 #define QUSB_DEFAULT_TIMEOUT 1000
 
 #define QUSB_EP_BULK_IN  0x86

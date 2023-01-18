@@ -374,9 +374,21 @@ ssize_t qusb_async(struct kiocb *iocb, char __user *buf, size_t count, BOOL read
         kfree(pReadlen);
         return -ENOMEM;
     }
+// it seems mmap_sem changed name to mmap_lock from kernel version 5.8
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+    down_read(&current->mm->mmap_lock);
+#else
     down_read(&current->mm->mmap_sem);
-    req->lockedPages = get_user_pages_remote(current, current->mm, (unsigned long)addr, req->numPages, 0, req->pages, NULL, NULL);
+#endif
+
+    req->lockedPages = get_user_pages_remote(current->mm, (unsigned long)addr, req->numPages, 0, req->pages, NULL, NULL);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+    up_read(&current->mm->mmap_lock);
+#else
     up_read(&current->mm->mmap_sem);
+#endif
+
     if (req->lockedPages != req->numPages) {
         QUSB_PRINTK(("Not all pages locked.\n"));
         
